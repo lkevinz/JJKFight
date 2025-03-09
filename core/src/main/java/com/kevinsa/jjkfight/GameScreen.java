@@ -17,221 +17,309 @@ public class GameScreen implements Screen {
     private ShapeRenderer shapeRenderer;
     private Texture fondo;
 
-    // Animación idle: array de 3 frames (por ejemplo, en "static")
-    private TextureRegion[] idleFrames;
-    private static final int NUM_IDLE_FRAMES = 3;
+    // -------------------- GOJO --------------------
+    private TextureRegion[] gojoIdleFrames;
+    private static final int NUM_GOJO_IDLE_FRAMES = 3;
+    private TextureRegion gojoFlyFrame;
+    private TextureRegion gojoFallFrame;
+    private TextureRegion gojoDashFrame;
+    private float gojoX, gojoY;
+    private float gojoOriginalWidth, gojoOriginalHeight;
+    private float gojoWidth, gojoHeight;
+    private float gojoVerticalVelocity = 0;
+    private float gojoIdleTime = 0;
 
-    // Frames para volar, caer y dash
-    private TextureRegion flyFrame;   // usado cuando se presiona W (volar)
-    private TextureRegion fallFrame;  // usado cuando se presiona S o se cae
-    private TextureRegion dashFrame;  // usado cuando se mueve lateralmente o se vuela en diagonal
+    private boolean gojoFlip = false;
+    private Rectangle gojoRect;
 
-    // Escala del personaje
+    // -------------------- SUKUNA --------------------
+    private TextureRegion[] sukunaIdleFrames;
+    private static final int NUM_SUKUNA_IDLE_FRAMES = 3;
+    private TextureRegion sukunaFlyFrame;
+    private TextureRegion sukunaFallFrame;
+    private TextureRegion sukunaDashFrame;
+    private float sukunaX, sukunaY;
+    private float sukunaOriginalWidth, sukunaOriginalHeight;
+    private float sukunaWidth, sukunaHeight;
+    private float sukunaVerticalVelocity = 0;
+    private float sukunaIdleTime = 0;
+
+    private boolean sukunaFlip = true;
+    private Rectangle sukunaRect;
+
+    // -------------------- Comunes --------------------
     private static final float SCALE = 0.75f;
-
-    // Posición del personaje (esquina superior izquierda)
-    private float personajeX, personajeY;
-
-    // Tamaño original y escalado
-    private float personajeOriginalAncho, personajeOriginalAlto;
-    private float personajeAncho, personajeAlto;
-
-    // Velocidad horizontal
-    private float velocidad = 600;
-
-    // Variables para movimiento vertical y gravedad
-    private float verticalVelocity = 0;
+    private static final float SPEED = 600;
     private static final float GRAVITY = -600;
-
-    // Grosor de las paredes
     private static final float WALL_THICKNESS = 50;
-
-    // Rectángulo de colisión (único)
-    private Rectangle personajeRect;
-
-    // Ajustes de colisión interna (porcentajes)
-    private static final float COLLISION_WIDTH_PERCENT = 0.20f;
-    private static final float COLLISION_HEIGHT_PERCENT = 0.68f;
-
-    // Animación idle
-    private float idleTime = 0;
     private static final float FRAME_DURATION = 0.5f;
-
-    // Dimensiones fijas del juego
     private static final int GAME_WIDTH = 1600;
     private static final int GAME_HEIGHT = 900;
-
-    // Variable para flip (si el personaje mira a la derecha)
-    private boolean facingRight = true;
+    // Rectángulo de colisión se calcula con estos porcentajes
+    private static final float COLLISION_WIDTH_PERCENT = 0.20f;
+    private static final float COLLISION_HEIGHT_PERCENT = 0.68f;
 
     public GameScreen(JJKFight game) {
         this.game = game;
         batch = new SpriteBatch();
         shapeRenderer = new ShapeRenderer();
 
-        // Carga del fondo (por ejemplo, "fondoShibuya.png" en assets)
+        // Cargar fondo
         fondo = new Texture(Gdx.files.internal("fondoShibuya.png"));
 
-        // Cargar los 3 frames de idle (por ejemplo, en assets/static)
-        idleFrames = new TextureRegion[NUM_IDLE_FRAMES];
-        for (int i = 0; i < NUM_IDLE_FRAMES; i++) {
-            idleFrames[i] = new TextureRegion(
+        // ---------------- Cargar imágenes de Gojo ----------------
+        gojoIdleFrames = new TextureRegion[NUM_GOJO_IDLE_FRAMES];
+        for (int i = 0; i < NUM_GOJO_IDLE_FRAMES; i++) {
+            gojoIdleFrames[i] = new TextureRegion(
                 new Texture(Gdx.files.internal("static/gojo(" + (i + 1) + ").png"))
             );
         }
+        gojoFlyFrame = new TextureRegion(new Texture(Gdx.files.internal("fly/gojo(1).png")));
+        gojoFallFrame = new TextureRegion(new Texture(Gdx.files.internal("fly/gojo(2).png")));
+        gojoDashFrame = new TextureRegion(new Texture(Gdx.files.internal("dash/gojo(1).png")));
 
-        // Cargar el frame de volar (fly) y caer (fall) (por ejemplo, en assets/fly)
-        flyFrame = new TextureRegion(new Texture(Gdx.files.internal("fly/gojo(1).png")));
-        fallFrame = new TextureRegion(new Texture(Gdx.files.internal("fly/gojo(2).png")));
+        gojoOriginalWidth = gojoIdleFrames[0].getTexture().getWidth();
+        gojoOriginalHeight = gojoIdleFrames[0].getTexture().getHeight();
+        gojoWidth = gojoOriginalWidth * SCALE;
+        gojoHeight = gojoOriginalHeight * SCALE;
 
-        // Cargar el frame de dash (por ejemplo, en assets/dash)
-        dashFrame = new TextureRegion(new Texture(Gdx.files.internal("dash/gojo(1).png")));
+        // Posición inicial de Gojo: en el extremo derecho (margen 50)
+        gojoX = 50;
+        gojoY = WALL_THICKNESS;
+        gojoRect = new Rectangle(gojoX, gojoY, gojoWidth, gojoHeight);
 
-        // Usar las dimensiones del primer frame idle para calcular el tamaño escalado
-        personajeOriginalAncho = idleFrames[0].getTexture().getWidth();
-        personajeOriginalAlto  = idleFrames[0].getTexture().getHeight();
-        personajeAncho = personajeOriginalAncho * SCALE;
-        personajeAlto  = personajeOriginalAlto * SCALE;
+        // ---------------- Cargar imágenes de Sukuna ----------------
+        sukunaIdleFrames = new TextureRegion[NUM_SUKUNA_IDLE_FRAMES];
+        for (int i = 0; i < NUM_SUKUNA_IDLE_FRAMES; i++) {
+            sukunaIdleFrames[i] = new TextureRegion(
+                new Texture(Gdx.files.internal("static/sukuna(" + (i + 1) + ").png"))
+            );
+        }
+        sukunaFlyFrame = new TextureRegion(new Texture(Gdx.files.internal("fly/sukuna(1).png")));
+        sukunaFallFrame = new TextureRegion(new Texture(Gdx.files.internal("fly/sukuna(2).png")));
+        sukunaDashFrame = new TextureRegion(new Texture(Gdx.files.internal("dash/sukuna(1).png")));
 
-        // Posición inicial (centrado en X y en el "suelo" definido por WALL_THICKNESS)
-        personajeX = (GAME_WIDTH - personajeAncho) / 2f;
-        personajeY = WALL_THICKNESS;
+        sukunaOriginalWidth = sukunaIdleFrames[0].getTexture().getWidth();
+        sukunaOriginalHeight = sukunaIdleFrames[0].getTexture().getHeight();
+        sukunaWidth = sukunaOriginalWidth * SCALE;
+        sukunaHeight = sukunaOriginalHeight * SCALE;
 
-        // Crear el rectángulo de colisión
-        personajeRect = new Rectangle(personajeX, personajeY, personajeAncho, personajeAlto);
+        // Posición inicial de Sukuna: en el extremo izquierdo (margen 50)
+        sukunaX = GAME_WIDTH - sukunaWidth - 50;
+        sukunaY = WALL_THICKNESS;
+        sukunaRect = new Rectangle(sukunaX, sukunaY, sukunaWidth, sukunaHeight);
+    }
+
+    @Override
+    public void resize(int width, int height) {
+        // Ignoramos cambios de tamaño para mantener dimensiones fijas
     }
 
     @Override
     public void render(float delta) {
-        // Actualizamos la lógica de movimiento y colisiones
-        // Variables de control para determinar el estado del personaje
-        boolean movingSide = false; // si se mueve lateralmente
-        boolean flying = false;     // si se presiona W
-        boolean sideFlying = false; // si se mueve diagonalmente (W + A/D)
-
-        // Movimiento horizontal
+        // ---------------- Actualizar controles de Gojo (W, A, S, D) ----------------
+        boolean gojoMovingSide = false;
+        boolean gojoFlying = false;
+        boolean gojoSideFlying = false;
+        // Por defecto, mantendremos gojoFlip en false (lo dibujamos sin flip, es decir, mirando a la derecha)
+        // Si se presiona A, se invierte (flip = true)
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
-            personajeX -= velocidad * delta;
-            facingRight = false;
-            movingSide = true;
+            gojoX -= SPEED * delta;
+            gojoMovingSide = true;
+            gojoFlip = true;  // Se invierte
         }
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
-            personajeX += velocidad * delta;
-            facingRight = true;
-            movingSide = true;
+            gojoX += SPEED * delta;
+            gojoMovingSide = true;
+            gojoFlip = false; // No se invierte
         }
-
-        // Movimiento vertical
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
-            personajeY += velocidad * delta;
-            verticalVelocity = 0;
-            flying = true;
+            gojoY += SPEED * delta;
+            gojoVerticalVelocity = 0;
+            gojoFlying = true;
         } else if (Gdx.input.isKeyPressed(Input.Keys.S)) {
-            float nuevaY = personajeY - velocidad * delta;
+            float nuevaY = gojoY - SPEED * delta;
             if (nuevaY < WALL_THICKNESS) {
-                personajeY = WALL_THICKNESS;
-                verticalVelocity = 0;
+                gojoY = WALL_THICKNESS;
+                gojoVerticalVelocity = 0;
             } else {
-                personajeY = nuevaY;
+                gojoY = nuevaY;
             }
         } else {
-            verticalVelocity += GRAVITY * delta;
-            personajeY += verticalVelocity * delta;
+            gojoVerticalVelocity += GRAVITY * delta;
+            gojoY += gojoVerticalVelocity * delta;
         }
-
-        // Si se vuela y se mueve lateralmente, se considera sideFlying
-        if (flying && movingSide) {
-            sideFlying = true;
+        if (gojoFlying && gojoMovingSide) {
+            gojoSideFlying = true;
         }
+        gojoRect.set(gojoX, gojoY, gojoWidth, gojoHeight);
 
-        // Actualización del rectángulo de colisión (usamos el mismo cálculo)
-        float collisionWidth = personajeAncho * COLLISION_WIDTH_PERCENT;
-        float collisionHeight = personajeAlto * COLLISION_HEIGHT_PERCENT;
-        float offsetX = (personajeAncho - collisionWidth) / 2f;
-        float offsetY = (personajeAlto - collisionHeight) / 2f;
-        personajeRect.set(
-            personajeX + offsetX,
-            personajeY + offsetY,
-            collisionWidth,
-            collisionHeight
-        );
+        // ---------------- Actualizar controles de Sukuna (Flechas) ----------------
+        boolean sukunaMovingSide = false;
+        boolean sukunaFlying = false;
+        boolean sukunaSideFlying = false;
+        // Por defecto, sukunaFlip se mantiene en false (imagen sin flip, mirando a la derecha)
+        if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
+            sukunaX -= SPEED * delta;
+            sukunaMovingSide = true;
+            sukunaFlip = true; // No flip
+        }
+        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
+            sukunaX += SPEED * delta;
+            sukunaMovingSide = true;
+            sukunaFlip = false; // Se invierte para que, al moverse a la derecha, la imagen (que por defecto mira a la derecha) se invierta
+        }
+        if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
+            sukunaY += SPEED * delta;
+            sukunaVerticalVelocity = 0;
+            sukunaFlying = true;
+        } else if (Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
+            float nuevaY = sukunaY - SPEED * delta;
+            if (nuevaY < WALL_THICKNESS) {
+                sukunaY = WALL_THICKNESS;
+                sukunaVerticalVelocity = 0;
+            } else {
+                sukunaY = nuevaY;
+            }
+        } else {
+            sukunaVerticalVelocity += GRAVITY * delta;
+            sukunaY += sukunaVerticalVelocity * delta;
+        }
+        if (sukunaFlying && sukunaMovingSide) {
+            sukunaSideFlying = true;
+        }
+        sukunaRect.set(sukunaX, sukunaY, sukunaWidth, sukunaHeight);
 
-        // Definir paredes fijas en 1600x900
+        // ---------------- Calcular rectángulos de colisión (para cada personaje) ----------------
+        // Se usan los porcentajes definidos
+        float gojoCollisionWidth = gojoWidth * COLLISION_WIDTH_PERCENT;
+        float gojoCollisionHeight = gojoHeight * COLLISION_HEIGHT_PERCENT;
+        float gojoOffsetX = (gojoWidth - gojoCollisionWidth) / 2f;
+        float gojoOffsetY = (gojoHeight - gojoCollisionHeight) / 2f;
+        Rectangle activeGojoRect = new Rectangle(gojoX + gojoOffsetX, gojoY + gojoOffsetY, gojoCollisionWidth, gojoCollisionHeight);
+
+        float sukunaCollisionWidth = sukunaWidth * COLLISION_WIDTH_PERCENT;
+        float sukunaCollisionHeight = sukunaHeight * COLLISION_HEIGHT_PERCENT;
+        float sukunaOffsetX = (sukunaWidth - sukunaCollisionWidth) / 2f;
+        float sukunaOffsetY = (sukunaHeight - sukunaCollisionHeight) / 2f;
+        Rectangle activeSukunaRect = new Rectangle(sukunaX + sukunaOffsetX, sukunaY + sukunaOffsetY, sukunaCollisionWidth, sukunaCollisionHeight);
+
+        // ---------------- Definir paredes fijas (1600x900) ----------------
         Rectangle leftWall = new Rectangle(0, 0, 2, GAME_HEIGHT);
         Rectangle rightWall = new Rectangle(GAME_WIDTH - 2, 0, 2, GAME_HEIGHT);
         Rectangle topWall = new Rectangle(0, GAME_HEIGHT - 2, GAME_WIDTH, 2);
         Rectangle bottomWall = new Rectangle(0, 0, GAME_WIDTH, WALL_THICKNESS);
 
-        // Comprobación de colisiones
-        if (personajeRect.overlaps(leftWall)) {
-            personajeX = leftWall.x + leftWall.width - offsetX;
+        // ---------------- Comprobación de colisiones para Gojo ----------------
+        if (activeGojoRect.overlaps(leftWall)) {
+            gojoX = leftWall.x + leftWall.width - gojoOffsetX;
         }
-        if (personajeRect.overlaps(rightWall)) {
-            personajeX = rightWall.x - personajeAncho + offsetX;
+        if (activeGojoRect.overlaps(rightWall)) {
+            gojoX = rightWall.x - gojoWidth + gojoOffsetX;
         }
-        if (personajeRect.overlaps(topWall)) {
-            personajeY = topWall.y - personajeAlto + offsetY;
-            verticalVelocity = 0;
+        if (activeGojoRect.overlaps(topWall)) {
+            gojoY = topWall.y - gojoHeight + gojoOffsetY;
+            gojoVerticalVelocity = 0;
         }
-        if (personajeRect.overlaps(bottomWall)) {
-            personajeY = bottomWall.y + bottomWall.height - offsetY;
-            verticalVelocity = 0;
+        if (activeGojoRect.overlaps(bottomWall)) {
+            gojoY = bottomWall.y + bottomWall.height - gojoOffsetY;
+            gojoVerticalVelocity = 0;
         }
+        gojoRect.set(gojoX, gojoY, gojoWidth, gojoHeight);
 
-        // Seleccionar el frame actual según el estado:
-        TextureRegion currentFrame;
+        // ---------------- Comprobación de colisiones para Sukuna ----------------
+        if (activeSukunaRect.overlaps(leftWall)) {
+            sukunaX = leftWall.x + leftWall.width - sukunaOffsetX;
+        }
+        if (activeSukunaRect.overlaps(rightWall)) {
+            sukunaX = rightWall.x - sukunaWidth + sukunaOffsetX;
+        }
+        if (activeSukunaRect.overlaps(topWall)) {
+            sukunaY = topWall.y - sukunaHeight + sukunaOffsetY;
+            sukunaVerticalVelocity = 0;
+        }
+        if (activeSukunaRect.overlaps(bottomWall)) {
+            sukunaY = bottomWall.y + bottomWall.height - sukunaOffsetY;
+            sukunaVerticalVelocity = 0;
+        }
+        sukunaRect.set(sukunaX, sukunaY, sukunaWidth, sukunaHeight);
+
+        // ---------------- Seleccionar el frame actual para cada personaje ----------------
+        TextureRegion gojoFrame;
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
-            // Si se vuela en diagonal (W+A o W+D) se usa dashFrame
-            currentFrame = (sideFlying) ? dashFrame : flyFrame;
+            gojoFrame = (gojoSideFlying) ? gojoDashFrame : gojoFlyFrame;
         } else if (Gdx.input.isKeyPressed(Input.Keys.S)
-            || (!Gdx.input.isKeyPressed(Input.Keys.W) && verticalVelocity < 0)) {
-            currentFrame = fallFrame;
-        } else if (movingSide) {
-            // Si solo se mueve lateralmente
-            currentFrame = dashFrame;
+            || (!Gdx.input.isKeyPressed(Input.Keys.W) && gojoVerticalVelocity < 0)) {
+            gojoFrame = gojoFallFrame;
+        } else if (gojoMovingSide) {
+            gojoFrame = gojoDashFrame;
         } else {
-            // Caso idle: animación con 3 frames
             boolean idle = !(Gdx.input.isKeyPressed(Input.Keys.A)
                 || Gdx.input.isKeyPressed(Input.Keys.D)
                 || Gdx.input.isKeyPressed(Input.Keys.W)
                 || Gdx.input.isKeyPressed(Input.Keys.S));
             if (idle) {
-                idleTime += delta;
+                gojoIdleTime += delta;
             } else {
-                idleTime = 0;
+                gojoIdleTime = 0;
             }
-            int frameIndex = (int)(idleTime / FRAME_DURATION) % NUM_IDLE_FRAMES;
-            currentFrame = idleFrames[frameIndex];
+            int frameIndex = (int)(gojoIdleTime / FRAME_DURATION) % NUM_GOJO_IDLE_FRAMES;
+            gojoFrame = gojoIdleFrames[frameIndex];
         }
 
-        // Renderizado
+        TextureRegion sukunaFrame;
+        if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
+            sukunaFrame = (sukunaSideFlying) ? sukunaDashFrame : sukunaFlyFrame;
+        } else if (Gdx.input.isKeyPressed(Input.Keys.DOWN)
+            || (!Gdx.input.isKeyPressed(Input.Keys.UP) && sukunaVerticalVelocity < 0)) {
+            sukunaFrame = sukunaFallFrame;
+        } else if (sukunaMovingSide) {
+            sukunaFrame = sukunaDashFrame;
+        } else {
+            boolean idle = !(Gdx.input.isKeyPressed(Input.Keys.LEFT)
+                || Gdx.input.isKeyPressed(Input.Keys.RIGHT)
+                || Gdx.input.isKeyPressed(Input.Keys.UP)
+                || Gdx.input.isKeyPressed(Input.Keys.DOWN));
+            if (idle) {
+                sukunaIdleTime += delta;
+            } else {
+                sukunaIdleTime = 0;
+            }
+            int frameIndex = (int)(sukunaIdleTime / FRAME_DURATION) % NUM_SUKUNA_IDLE_FRAMES;
+            sukunaFrame = sukunaIdleFrames[frameIndex];
+        }
+
+        // ---------------- Renderizado ----------------
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-
         batch.begin();
         batch.draw(fondo, 0, 0, GAME_WIDTH, GAME_HEIGHT);
-        // Dibujar el personaje con flip horizontal si es necesario
-        if (facingRight) {
-            batch.draw(currentFrame, personajeX, personajeY, personajeAncho, personajeAlto);
+
+        // Dibujar Gojo:
+        // Si gojoFlip es true, dibujamos con flip horizontal
+        if (gojoFlip) {
+            batch.draw(gojoFrame, gojoX + gojoWidth, gojoY, -gojoWidth, gojoHeight);
         } else {
-            batch.draw(currentFrame, personajeX + personajeAncho, personajeY, -personajeAncho, personajeAlto);
+            batch.draw(gojoFrame, gojoX, gojoY, gojoWidth, gojoHeight);
+        }
+        // Dibujar Sukuna:
+        if (sukunaFlip) {
+            batch.draw(sukunaFrame, sukunaX + sukunaWidth, sukunaY, -sukunaWidth, sukunaHeight);
+        } else {
+            batch.draw(sukunaFrame, sukunaX, sukunaY, sukunaWidth, sukunaHeight);
         }
         batch.end();
 
-        // Dibujo de debug: paredes y rectángulo de colisión
+        // ---------------- Renderizado de Debug ----------------
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         shapeRenderer.setColor(Color.GREEN);
         shapeRenderer.rect(leftWall.x, leftWall.y, leftWall.width, leftWall.height);
         shapeRenderer.rect(rightWall.x, rightWall.y, rightWall.width, rightWall.height);
         shapeRenderer.rect(topWall.x, topWall.y, topWall.width, topWall.height);
         shapeRenderer.rect(bottomWall.x, bottomWall.y, bottomWall.width, bottomWall.height);
-        shapeRenderer.rect(personajeRect.x, personajeRect.y, personajeRect.width, personajeRect.height);
+        shapeRenderer.rect(activeGojoRect.x, activeGojoRect.y, activeGojoRect.width, activeGojoRect.height);
+        shapeRenderer.rect(activeSukunaRect.x, activeSukunaRect.y, activeSukunaRect.width, activeSukunaRect.height);
         shapeRenderer.end();
-    }
-
-    @Override
-    public void resize(int width, int height) {
-        // Ignoramos cambios de tamaño
     }
 
     @Override
@@ -248,11 +336,18 @@ public class GameScreen implements Screen {
         batch.dispose();
         shapeRenderer.dispose();
         fondo.dispose();
-        for (TextureRegion region : idleFrames) {
+        for (TextureRegion region : gojoIdleFrames) {
             region.getTexture().dispose();
         }
-        flyFrame.getTexture().dispose();
-        fallFrame.getTexture().dispose();
-        dashFrame.getTexture().dispose();
+        gojoFlyFrame.getTexture().dispose();
+        gojoFallFrame.getTexture().dispose();
+        gojoDashFrame.getTexture().dispose();
+
+        for (TextureRegion region : sukunaIdleFrames) {
+            region.getTexture().dispose();
+        }
+        sukunaFlyFrame.getTexture().dispose();
+        sukunaFallFrame.getTexture().dispose();
+        sukunaDashFrame.getTexture().dispose();
     }
 }
