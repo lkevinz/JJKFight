@@ -17,7 +17,7 @@ public class MenuScreen implements Screen {
     private JJKFight game;
     private Music menuMusic;
     private int currentVolumeIndex;
-    // Arreglo de volúmenes
+    // Arreglo de volúmenes (valores del 0 al 100)
     private final int[] volumes = {0, 18, 34, 66, 82, 98};
 
     // Texturas
@@ -63,13 +63,12 @@ public class MenuScreen implements Screen {
         exitButton = new Image(exitTexture);
         soundButton = new Image(soundOnTexture);
 
-        // Iniciar la música con el volumen definido
+        // Iniciar la música con el volumen definido (convertido a 0..1)
         menuMusic.setLooping(true);
         menuMusic.setVolume(volumes[currentVolumeIndex] / 100f);
         menuMusic.play();
 
         // Listener para botón Play
-        // Listener para botón Play (en MenuScreen)
         playButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -77,7 +76,6 @@ public class MenuScreen implements Screen {
                 menuMusic.stop();
             }
         });
-
 
         // Listener para botón Settings (abre la pantalla de configuraciones)
         settingsButton.addListener(new ClickListener() {
@@ -96,18 +94,22 @@ public class MenuScreen implements Screen {
         });
 
         // Listener para botón de sonido (alternar entre on/off)
+        // Listener para botón de sonido (alternar entre on/off)
         soundButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 if (menuMusic.isPlaying()){
                     menuMusic.pause();
                     soundButton.setDrawable(new Image(soundOffTexture).getDrawable());
+                    game.setVolume(0f); // Desactiva el sonido en el juego
                 } else {
                     menuMusic.play();
                     soundButton.setDrawable(new Image(soundOnTexture).getDrawable());
+                    game.setVolume(volumes[currentVolumeIndex] / 100f); // Restaura el volumen seleccionado
                 }
             }
         });
+
 
         Table table = new Table();
         table.setFillParent(true);
@@ -126,6 +128,9 @@ public class MenuScreen implements Screen {
 
     @Override
     public void render(float delta) {
+        // Actualiza el volumen en cada renderizado, por si se ha modificado en SettingsScreen
+        menuMusic.setVolume(volumes[currentVolumeIndex] / 100f);
+
         Gdx.gl.glClearColor(0,0,0,1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
         stage.act(delta);

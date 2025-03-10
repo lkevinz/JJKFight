@@ -3,7 +3,8 @@ package com.kevinsa.jjkfight;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
-// Se añade la importación de Sound
+// Se añade la importación de Sound y Music
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
@@ -20,9 +21,11 @@ public class GameScreen implements Screen {
     private Texture fondo;
 
     // -------------------- Efectos de sonido --------------------
-    // Se añaden las variables para los sonidos:
     private Sound readySound;
     private Sound punchSound;
+
+    // -------------------- Música de fondo --------------------
+    private Music gameMusic;
 
     // -------------------- GOJO --------------------
     private TextureRegion[] gojoIdleFrames;
@@ -104,6 +107,13 @@ public class GameScreen implements Screen {
         // ---------------- Cargar sonidos ----------------
         readySound = Gdx.audio.newSound(Gdx.files.internal("fight/ready.mp3"));
         punchSound = Gdx.audio.newSound(Gdx.files.internal("fight/punch.mp3"));
+
+        // ---------------- Cargar música de fondo ----------------
+        gameMusic = Gdx.audio.newMusic(Gdx.files.internal("game.mp3"));
+        gameMusic.setLooping(true);
+        // Se asume que game.getVolume() devuelve un float entre 0 y 1
+        gameMusic.setVolume(game.getVolume());
+        gameMusic.play();
 
         // ---------------- Cargar imágenes de vida ----------------
         gojoLifeTextures = new Texture[18];
@@ -193,12 +203,14 @@ public class GameScreen implements Screen {
 
     @Override
     public void render(float delta) {
+        // Actualizar volumen de la música de fondo según el valor obtenido del menú
+        gameMusic.setVolume(game.getVolume());
+
         // ---------------- Actualizar controles de Gojo (movimiento) ----------------
         boolean gojoMovingSide = false;
         boolean gojoFlying = false;
         boolean gojoSideFlying = false;
 
-        // Si Gojo está vivo (vida != 17)
         if (gojoLifeIndex != 17) {
             if (Gdx.input.isKeyPressed(Input.Keys.A)) {
                 gojoX -= SPEED * delta;
@@ -228,7 +240,8 @@ public class GameScreen implements Screen {
             if (gojoFlying && gojoMovingSide) {
                 gojoSideFlying = true;
             }
-        } else {  // Si está muerto (vida == 17): se aplica gravedad para que caiga
+        } else {
+            // Si está muerto (vida == 17): se aplica gravedad para que caiga
             gojoVerticalVelocity += DEAD_GRAVITY * delta;
             gojoY += gojoVerticalVelocity * delta;
             if (gojoY < 0) {
@@ -272,7 +285,8 @@ public class GameScreen implements Screen {
             if (sukunaFlying && sukunaMovingSide) {
                 sukunaSideFlying = true;
             }
-        } else {  // Si está muerto (vida == 17): se aplica gravedad para que caiga
+        } else {
+            // Si está muerto (vida == 17): se aplica gravedad para que caiga
             sukunaVerticalVelocity += DEAD_GRAVITY * delta;
             sukunaY += sukunaVerticalVelocity * delta;
             if (sukunaY < 0) {
@@ -438,7 +452,6 @@ public class GameScreen implements Screen {
                 } else {
                     sukunaIdleTime = 0;
                 }
-
                 int frameIndex = (int)(sukunaIdleTime / FRAME_DURATION) % NUM_SUKUNA_IDLE_FRAMES;
                 sukunaFrame = sukunaIdleFrames[frameIndex];
             }
@@ -506,6 +519,9 @@ public class GameScreen implements Screen {
         // Liberar sonidos
         readySound.dispose();
         punchSound.dispose();
+
+        // Liberar música de fondo
+        gameMusic.dispose();
 
         // Gojo idle
         for (TextureRegion region : gojoIdleFrames) {
