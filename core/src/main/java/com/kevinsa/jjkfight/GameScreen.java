@@ -96,6 +96,8 @@ public class GameScreen implements Screen {
     private static final float COLLISION_WIDTH_PERCENT = 0.30f;
     private static final float COLLISION_HEIGHT_PERCENT = 0.68f;
 
+    private float endScreenDelayTimer = 0f;
+
     public GameScreen(JJKFight game) {
         this.game = game;
         batch = new SpriteBatch();
@@ -205,6 +207,18 @@ public class GameScreen implements Screen {
     public void render(float delta) {
         // Actualizar volumen de la música de fondo según el valor obtenido del menú
         gameMusic.setVolume(game.getVolume());
+
+        // Si alguno está muerto, esperar 5 segundos antes de cambiar a EndScreen
+        if (gojoLifeIndex == 17 || sukunaLifeIndex == 17) {
+            endScreenDelayTimer += delta;
+            if (endScreenDelayTimer >= 5f) {
+                gameMusic.stop();
+                game.setScreen(new EndScreen(game, gojoLifeIndex, sukunaLifeIndex));
+                return;
+            }
+        }
+
+
 
         // ---------------- Actualizar controles de Gojo (movimiento) ----------------
         boolean gojoMovingSide = false;
