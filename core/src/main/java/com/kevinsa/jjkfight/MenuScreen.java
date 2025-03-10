@@ -14,11 +14,17 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 public class MenuScreen implements Screen {
 
     private Stage stage;
+    private JJKFight game;
+    private Music menuMusic;
+    private int currentVolumeIndex;
+    // Arreglo de volúmenes
+    private final int[] volumes = {0, 18, 34, 66, 82, 98};
+
+    // Texturas
     private Texture backgroundTexture;
     private Texture playTexture;
     private Texture settingsTexture;
     private Texture exitTexture;
-    // Nuevas texturas para el botón de sonido
     private Texture soundOnTexture;
     private Texture soundOffTexture;
 
@@ -26,64 +32,60 @@ public class MenuScreen implements Screen {
     private Image playButton;
     private Image settingsButton;
     private Image exitButton;
-    // Botón de sonido
     private Image soundButton;
 
-    private JJKFight game; // Referencia a la clase principal
-
-    // Música del menú
-    private Music menuMusic;
-    // Variable para saber si el sonido está activo
-    private boolean soundEnabled = true;
-
+    // Constructor por defecto: se crea la música y se asigna un índice de volumen por defecto (ej.: 3 → 66)
     public MenuScreen(JJKFight game) {
+        this(game, Gdx.audio.newMusic(Gdx.files.internal("menu/menu.mp3")), 3);
+    }
+
+    // Constructor completo que permite pasar la música y el índice de volumen
+    public MenuScreen(JJKFight game, Music menuMusic, int currentVolumeIndex) {
         this.game = game;
+        this.menuMusic = menuMusic;
+        this.currentVolumeIndex = currentVolumeIndex;
         stage = new Stage();
         Gdx.input.setInputProcessor(stage);
 
-        // Cargar las texturas (asegúrate de que estas imágenes estén en assets/menu/)
+        // Cargar texturas
         backgroundTexture = new Texture(Gdx.files.internal("menu/menu_fondo.png"));
         playTexture       = new Texture(Gdx.files.internal("menu/start_menu.png"));
         settingsTexture   = new Texture(Gdx.files.internal("menu/settings_menu.png"));
         exitTexture       = new Texture(Gdx.files.internal("menu/exit_menu.png"));
-        // Cargar las texturas para el botón de sonido
         soundOnTexture    = new Texture(Gdx.files.internal("menu/on.png"));
         soundOffTexture   = new Texture(Gdx.files.internal("menu/off.png"));
 
-        // Crear los actores de imagen
         backgroundImage = new Image(backgroundTexture);
         backgroundImage.setFillParent(true);
 
         playButton = new Image(playTexture);
         settingsButton = new Image(settingsTexture);
         exitButton = new Image(exitTexture);
-        // Iniciar el botón de sonido con la imagen "on"
         soundButton = new Image(soundOnTexture);
 
-        // Cargar la música del menú (colócala en assets/menu/ o en otra carpeta y ajusta la ruta)
-        menuMusic = Gdx.audio.newMusic(Gdx.files.internal("menu/menu.mp3"));
+        // Iniciar la música con el volumen definido
         menuMusic.setLooping(true);
-        menuMusic.setVolume(0.3f);
+        menuMusic.setVolume(volumes[currentVolumeIndex] / 100f);
         menuMusic.play();
 
-        // Agregar listeners a los botones
+        // Listener para botón Play
         playButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                // Cambiar a la pantalla principal de juego
                 game.setScreen(new GameScreen(game));
-                // Opcional: detener la música del menú al iniciar el juego
                 menuMusic.stop();
             }
         });
 
+        // Listener para botón Settings (abre la pantalla de configuraciones)
         settingsButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                System.out.println("Pantalla de configuraciones (no implementada)");
+                game.setScreen(new SettingsScreen(game, menuMusic, currentVolumeIndex));
             }
         });
 
+        // Listener para botón Exit
         exitButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -91,47 +93,39 @@ public class MenuScreen implements Screen {
             }
         });
 
-        // Listener para el botón de sonido
+        // Listener para botón de sonido (alternar entre on/off)
         soundButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                soundEnabled = !soundEnabled;
-                if (soundEnabled) {
-                    soundButton.setDrawable(new Image(soundOnTexture).getDrawable());
-                    menuMusic.play();
-                } else {
-                    soundButton.setDrawable(new Image(soundOffTexture).getDrawable());
+                if (menuMusic.isPlaying()){
                     menuMusic.pause();
+                    soundButton.setDrawable(new Image(soundOffTexture).getDrawable());
+                } else {
+                    menuMusic.play();
+                    soundButton.setDrawable(new Image(soundOnTexture).getDrawable());
                 }
             }
         });
 
-        // Organizar los elementos en una Table
         Table table = new Table();
         table.setFillParent(true);
         table.center();
-
-        // Agregar botones con un padding
         table.add(playButton).pad(20).row();
         table.add(settingsButton).pad(20).row();
         table.add(exitButton).pad(20).row();
-        table.add(soundButton).width(100).pad(20); // Agrega el botón de sonido
+        table.add(soundButton).width(100).pad(20);
 
-        // Agregar los actores al Stage; el fondo primero, luego la Table
         stage.addActor(backgroundImage);
         stage.addActor(table);
     }
 
     @Override
-    public void show() {
-        // Se llama cuando esta pantalla es mostrada
-    }
+    public void show() { }
 
     @Override
     public void render(float delta) {
-        Gdx.gl.glClearColor(0, 0, 0, 1);
+        Gdx.gl.glClearColor(0,0,0,1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-
         stage.act(delta);
         stage.draw();
     }
@@ -141,14 +135,9 @@ public class MenuScreen implements Screen {
         stage.getViewport().update(width, height, true);
     }
 
-    @Override
-    public void pause() { }
-
-    @Override
-    public void resume() { }
-
-    @Override
-    public void hide() { }
+    @Override public void pause() { }
+    @Override public void resume() { }
+    @Override public void hide() { }
 
     @Override
     public void dispose() {
