@@ -69,6 +69,7 @@ public class MenuScreen implements Screen {
         menuMusic.play();
 
         // Listener para botón Play
+        // Listener para botón Play (en MenuScreen)
         playButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -76,6 +77,7 @@ public class MenuScreen implements Screen {
                 menuMusic.stop();
             }
         });
+
 
         // Listener para botón Settings (abre la pantalla de configuraciones)
         settingsButton.addListener(new ClickListener() {

@@ -3,6 +3,8 @@ package com.kevinsa.jjkfight;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
+// Se añade la importación de Sound
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
@@ -16,6 +18,11 @@ public class GameScreen implements Screen {
     private SpriteBatch batch;
     private ShapeRenderer shapeRenderer;
     private Texture fondo;
+
+    // -------------------- Efectos de sonido --------------------
+    // Se añaden las variables para los sonidos:
+    private Sound readySound;
+    private Sound punchSound;
 
     // -------------------- GOJO --------------------
     private TextureRegion[] gojoIdleFrames;
@@ -63,19 +70,23 @@ public class GameScreen implements Screen {
     private int gojoLifeIndex = 0;
     private int sukunaLifeIndex = 0;
 
+    // -------------------- NUEVAS VARIABLES PARA MUERTE --------------------
+    // Imágenes de "dead" para cada personaje (assets/dead/)
+    private Texture gojoDeadTexture;
+    private Texture sukunaDeadTexture;
+    // Gravedad aplicada cuando el personaje está muerto (cae hasta el suelo)
+    private static final float DEAD_GRAVITY = -600f;
+
     // -------------------- Comunes --------------------
     private static final float SCALE = 0.75f;
     private static final float SPEED = 600;
-    // Sin gravedad (se mantiene en 0)
-    private static final float GRAVITY = 0;
-    // Para evitar restricciones de pared
+    private static final float GRAVITY = 0;  // Sin gravedad
     private static final float WALL_THICKNESS = 0;
     private static final float FRAME_DURATION = 0.5f;
     private static final int GAME_WIDTH = 1600;
     private static final int GAME_HEIGHT = 900;
 
     // Velocidad de animación de ataque (más rápida de lo normal)
-    // Ajusta según te guste (cuanto más pequeño, más rápida la animación)
     private static final float ATTACK_FRAME_DURATION = 0.07f;
 
     // Porcentajes para el rectángulo de colisión
@@ -89,6 +100,10 @@ public class GameScreen implements Screen {
 
         // Cargar fondo
         fondo = new Texture(Gdx.files.internal("fondoShibuya.png"));
+
+        // ---------------- Cargar sonidos ----------------
+        readySound = Gdx.audio.newSound(Gdx.files.internal("fight/ready.mp3"));
+        punchSound = Gdx.audio.newSound(Gdx.files.internal("fight/punch.mp3"));
 
         // ---------------- Cargar imágenes de vida ----------------
         gojoLifeTextures = new Texture[18];
@@ -112,11 +127,13 @@ public class GameScreen implements Screen {
         // ---------------- Cargar imágenes de ataque de Gojo (5 fotogramas) ----------------
         gojoAttackFrames = new TextureRegion[5];
         for (int i = 0; i < 5; i++) {
-            // Se asume que los archivos se llaman "fight/gojo(1).png" hasta "gojo(5).png"
             gojoAttackFrames[i] = new TextureRegion(
                 new Texture(Gdx.files.internal("fight/gojo(" + (i + 1) + ").png"))
             );
         }
+
+        // Cargar imagen de muerte de Gojo (assets/dead/gojo(1).png)
+        gojoDeadTexture = new Texture(Gdx.files.internal("dead/gojo(1).png"));
 
         // Dimensiones de Gojo
         gojoOriginalWidth = gojoIdleFrames[0].getTexture().getWidth();
@@ -143,11 +160,13 @@ public class GameScreen implements Screen {
         // ---------------- Cargar imágenes de ataque de Sukuna (5 fotogramas) ----------------
         sukunaAttackFrames = new TextureRegion[5];
         for (int i = 0; i < 5; i++) {
-            // Se asume que los archivos se llaman "fight/sukuna(1).png" hasta "sukuna(5).png"
             sukunaAttackFrames[i] = new TextureRegion(
                 new Texture(Gdx.files.internal("fight/sukuna(" + (i + 1) + ").png"))
             );
         }
+
+        // Cargar imagen de muerte de Sukuna (assets/dead/sukuna(1).png)
+        sukunaDeadTexture = new Texture(Gdx.files.internal("dead/sukuna(1).png"));
 
         // Dimensiones de Sukuna
         sukunaOriginalWidth = sukunaIdleFrames[0].getTexture().getWidth();
@@ -167,39 +186,55 @@ public class GameScreen implements Screen {
     }
 
     @Override
+    public void show() {
+        // Reproduce ready.mp3 solo al inicio
+        readySound.play();
+    }
+
+    @Override
     public void render(float delta) {
         // ---------------- Actualizar controles de Gojo (movimiento) ----------------
         boolean gojoMovingSide = false;
         boolean gojoFlying = false;
         boolean gojoSideFlying = false;
 
-        if (Gdx.input.isKeyPressed(Input.Keys.A)) {
-            gojoX -= SPEED * delta;
-            gojoMovingSide = true;
-            gojoFlip = true;
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.D)) {
-            gojoX += SPEED * delta;
-            gojoMovingSide = true;
-            gojoFlip = false;
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.W)) {
-            gojoY += SPEED * delta;
-            gojoVerticalVelocity = 0;
-            gojoFlying = true;
-        } else if (Gdx.input.isKeyPressed(Input.Keys.S)) {
-            float nuevaY = gojoY - SPEED * delta;
-            if (nuevaY < WALL_THICKNESS) {
-                gojoY = WALL_THICKNESS;
-                gojoVerticalVelocity = 0;
-            } else {
-                gojoY = nuevaY;
+        // Si Gojo está vivo (vida != 17)
+        if (gojoLifeIndex != 17) {
+            if (Gdx.input.isKeyPressed(Input.Keys.A)) {
+                gojoX -= SPEED * delta;
+                gojoMovingSide = true;
+                gojoFlip = true;
             }
-        } else {
-            gojoVerticalVelocity = 0;
-        }
-        if (gojoFlying && gojoMovingSide) {
-            gojoSideFlying = true;
+            if (Gdx.input.isKeyPressed(Input.Keys.D)) {
+                gojoX += SPEED * delta;
+                gojoMovingSide = true;
+                gojoFlip = false;
+            }
+            if (Gdx.input.isKeyPressed(Input.Keys.W)) {
+                gojoY += SPEED * delta;
+                gojoVerticalVelocity = 0;
+                gojoFlying = true;
+            } else if (Gdx.input.isKeyPressed(Input.Keys.S)) {
+                float nuevaY = gojoY - SPEED * delta;
+                if (nuevaY < WALL_THICKNESS) {
+                    gojoY = WALL_THICKNESS;
+                    gojoVerticalVelocity = 0;
+                } else {
+                    gojoY = nuevaY;
+                }
+            } else {
+                gojoVerticalVelocity = 0;
+            }
+            if (gojoFlying && gojoMovingSide) {
+                gojoSideFlying = true;
+            }
+        } else {  // Si está muerto (vida == 17): se aplica gravedad para que caiga
+            gojoVerticalVelocity += DEAD_GRAVITY * delta;
+            gojoY += gojoVerticalVelocity * delta;
+            if (gojoY < 0) {
+                gojoY = 0;
+                gojoVerticalVelocity = 0;
+            }
         }
         gojoRect.set(gojoX, gojoY, gojoWidth, gojoHeight);
 
@@ -208,33 +243,42 @@ public class GameScreen implements Screen {
         boolean sukunaFlying = false;
         boolean sukunaSideFlying = false;
 
-        if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
-            sukunaX -= SPEED * delta;
-            sukunaMovingSide = true;
-            sukunaFlip = true;
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
-            sukunaX += SPEED * delta;
-            sukunaMovingSide = true;
-            sukunaFlip = false;
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
-            sukunaY += SPEED * delta;
-            sukunaVerticalVelocity = 0;
-            sukunaFlying = true;
-        } else if (Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
-            float nuevaY = sukunaY - SPEED * delta;
-            if (nuevaY < WALL_THICKNESS) {
-                sukunaY = WALL_THICKNESS;
-                sukunaVerticalVelocity = 0;
-            } else {
-                sukunaY = nuevaY;
+        if (sukunaLifeIndex != 17) {
+            if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
+                sukunaX -= SPEED * delta;
+                sukunaMovingSide = true;
+                sukunaFlip = true;
             }
-        } else {
-            sukunaVerticalVelocity = 0;
-        }
-        if (sukunaFlying && sukunaMovingSide) {
-            sukunaSideFlying = true;
+            if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
+                sukunaX += SPEED * delta;
+                sukunaMovingSide = true;
+                sukunaFlip = false;
+            }
+            if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
+                sukunaY += SPEED * delta;
+                sukunaVerticalVelocity = 0;
+                sukunaFlying = true;
+            } else if (Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
+                float nuevaY = sukunaY - SPEED * delta;
+                if (nuevaY < WALL_THICKNESS) {
+                    sukunaY = WALL_THICKNESS;
+                    sukunaVerticalVelocity = 0;
+                } else {
+                    sukunaY = nuevaY;
+                }
+            } else {
+                sukunaVerticalVelocity = 0;
+            }
+            if (sukunaFlying && sukunaMovingSide) {
+                sukunaSideFlying = true;
+            }
+        } else {  // Si está muerto (vida == 17): se aplica gravedad para que caiga
+            sukunaVerticalVelocity += DEAD_GRAVITY * delta;
+            sukunaY += sukunaVerticalVelocity * delta;
+            if (sukunaY < 0) {
+                sukunaY = 0;
+                sukunaVerticalVelocity = 0;
+            }
         }
         sukunaRect.set(sukunaX, sukunaY, sukunaWidth, sukunaHeight);
 
@@ -243,13 +287,15 @@ public class GameScreen implements Screen {
         float gojoCollisionHeight = gojoHeight * COLLISION_HEIGHT_PERCENT;
         float gojoOffsetX = (gojoWidth - gojoCollisionWidth) / 2f;
         float gojoOffsetY = (gojoHeight - gojoCollisionHeight) / 2f;
-        Rectangle activeGojoRect = new Rectangle(gojoX + gojoOffsetX, gojoY + gojoOffsetY, gojoCollisionWidth, gojoCollisionHeight);
+        Rectangle activeGojoRect = new Rectangle(gojoX + gojoOffsetX, gojoY + gojoOffsetY,
+            gojoCollisionWidth, gojoCollisionHeight);
 
         float sukunaCollisionWidth = sukunaWidth * COLLISION_WIDTH_PERCENT;
         float sukunaCollisionHeight = sukunaHeight * COLLISION_HEIGHT_PERCENT;
         float sukunaOffsetX = (sukunaWidth - sukunaCollisionWidth) / 2f;
         float sukunaOffsetY = (sukunaHeight - sukunaCollisionHeight) / 2f;
-        Rectangle activeSukunaRect = new Rectangle(sukunaX + sukunaOffsetX, sukunaY + sukunaOffsetY, sukunaCollisionWidth, sukunaCollisionHeight);
+        Rectangle activeSukunaRect = new Rectangle(sukunaX + sukunaOffsetX, sukunaY + sukunaOffsetY,
+            sukunaCollisionWidth, sukunaCollisionHeight);
 
         // ---------------- Paredes (sin restricciones de solapamiento entre personajes) ----------------
         Rectangle leftWall = new Rectangle(0, 0, 2, GAME_HEIGHT);
@@ -292,25 +338,25 @@ public class GameScreen implements Screen {
         sukunaRect.set(sukunaX, sukunaY, sukunaWidth, sukunaHeight);
 
         // Rectángulos finales para detección de ataques
-        Rectangle activeGojoRectPost = new Rectangle(gojoX + gojoOffsetX, gojoY + gojoOffsetY, gojoCollisionWidth, gojoCollisionHeight);
-        Rectangle activeSukunaRectPost = new Rectangle(sukunaX + sukunaOffsetX, sukunaY + sukunaOffsetY, sukunaCollisionWidth, sukunaCollisionHeight);
+        Rectangle activeGojoRectPost = new Rectangle(gojoX + gojoOffsetX, gojoY + gojoOffsetY,
+            gojoCollisionWidth, gojoCollisionHeight);
+        Rectangle activeSukunaRectPost = new Rectangle(sukunaX + sukunaOffsetX, sukunaY + sukunaOffsetY,
+            sukunaCollisionWidth, sukunaCollisionHeight);
 
         // ---------------- Lógica de ataque ----------------
         // GOJO ataca con la tecla C
         if (Gdx.input.isKeyJustPressed(Input.Keys.C)) {
             gojoAttacking = true;
             gojoAttackTime = 0f;  // reinicia la animación de ataque
-            // Si colisionan, baja vida de Sukuna
             if (activeGojoRectPost.overlaps(activeSukunaRectPost)) {
                 if (sukunaLifeIndex < 17) {
                     sukunaLifeIndex++;
                 }
+                punchSound.play();
             }
         }
-        // Sucede mientras "gojoAttacking" sea true
         if (gojoAttacking) {
             gojoAttackTime += delta;
-            // Si pasa de 5 fotogramas, termina la animación
             if (gojoAttackTime / ATTACK_FRAME_DURATION >= 5) {
                 gojoAttacking = false;
             }
@@ -320,32 +366,30 @@ public class GameScreen implements Screen {
         if (Gdx.input.isKeyJustPressed(Input.Keys.L)) {
             sukunaAttacking = true;
             sukunaAttackTime = 0f; // reinicia la animación de ataque
-            // Si colisionan, baja vida de Gojo
             if (activeSukunaRectPost.overlaps(activeGojoRectPost)) {
                 if (gojoLifeIndex < 17) {
                     gojoLifeIndex++;
                 }
+                punchSound.play();
             }
         }
-        // Sucede mientras "sukunaAttacking" sea true
         if (sukunaAttacking) {
             sukunaAttackTime += delta;
-            // Si pasa de 5 fotogramas, termina la animación
             if (sukunaAttackTime / ATTACK_FRAME_DURATION >= 5) {
                 sukunaAttacking = false;
             }
         }
 
         // ---------------- Seleccionar el frame actual para cada personaje ----------------
-        TextureRegion gojoFrame = null;
-        if (gojoAttacking) {
-            // Calcula el frame de ataque de Gojo
+        TextureRegion gojoFrame;
+        if (gojoLifeIndex == 17) {
+            // Si Gojo está muerto, usa la imagen de muerte y la gravedad lo hace caer
+            gojoFrame = new TextureRegion(gojoDeadTexture);
+        } else if (gojoAttacking) {
             int frameIndex = (int)(gojoAttackTime / ATTACK_FRAME_DURATION);
-            // Evita índice fuera de rango
             if (frameIndex >= 5) frameIndex = 4;
             gojoFrame = gojoAttackFrames[frameIndex];
         } else {
-            // Lógica normal (idle, volar, caer, etc.)
             if (Gdx.input.isKeyPressed(Input.Keys.W)) {
                 gojoFrame = (gojoSideFlying) ? gojoDashFrame : gojoFlyFrame;
             } else if (Gdx.input.isKeyPressed(Input.Keys.S)
@@ -354,7 +398,6 @@ public class GameScreen implements Screen {
             } else if (gojoMovingSide) {
                 gojoFrame = gojoDashFrame;
             } else {
-                // Idle
                 boolean idle = !(Gdx.input.isKeyPressed(Input.Keys.A)
                     || Gdx.input.isKeyPressed(Input.Keys.D)
                     || Gdx.input.isKeyPressed(Input.Keys.W)
@@ -369,14 +412,15 @@ public class GameScreen implements Screen {
             }
         }
 
-        TextureRegion sukunaFrame = null;
-        if (sukunaAttacking) {
-            // Calcula el frame de ataque de Sukuna
+        TextureRegion sukunaFrame;
+        if (sukunaLifeIndex == 17) {
+            // Si Sukuna está muerto, usa la imagen de muerte y la gravedad lo hace caer
+            sukunaFrame = new TextureRegion(sukunaDeadTexture);
+        } else if (sukunaAttacking) {
             int frameIndex = (int)(sukunaAttackTime / ATTACK_FRAME_DURATION);
             if (frameIndex >= 5) frameIndex = 4;
             sukunaFrame = sukunaAttackFrames[frameIndex];
         } else {
-            // Lógica normal (idle, volar, caer, etc.)
             if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
                 sukunaFrame = (sukunaSideFlying) ? sukunaDashFrame : sukunaFlyFrame;
             } else if (Gdx.input.isKeyPressed(Input.Keys.DOWN)
@@ -385,7 +429,6 @@ public class GameScreen implements Screen {
             } else if (sukunaMovingSide) {
                 sukunaFrame = sukunaDashFrame;
             } else {
-                // Idle
                 boolean idle = !(Gdx.input.isKeyPressed(Input.Keys.LEFT)
                     || Gdx.input.isKeyPressed(Input.Keys.RIGHT)
                     || Gdx.input.isKeyPressed(Input.Keys.UP)
@@ -395,6 +438,7 @@ public class GameScreen implements Screen {
                 } else {
                     sukunaIdleTime = 0;
                 }
+
                 int frameIndex = (int)(sukunaIdleTime / FRAME_DURATION) % NUM_SUKUNA_IDLE_FRAMES;
                 sukunaFrame = sukunaIdleFrames[frameIndex];
             }
@@ -423,7 +467,6 @@ public class GameScreen implements Screen {
         // Dibujar las barras de vida
         Texture currentGojoLife = gojoLifeTextures[gojoLifeIndex];
         Texture currentSukunaLife = sukunaLifeTextures[sukunaLifeIndex];
-        // Posiciones para las barras de vida (ajusta según necesites)
         float gojoLifeX = 0;
         float gojoLifeY = 0;
         float sukunaLifeX = 0;
@@ -446,9 +489,6 @@ public class GameScreen implements Screen {
     }
 
     @Override
-    public void show() { }
-
-    @Override
     public void hide() { }
 
     @Override
@@ -462,6 +502,10 @@ public class GameScreen implements Screen {
         batch.dispose();
         shapeRenderer.dispose();
         fondo.dispose();
+
+        // Liberar sonidos
+        readySound.dispose();
+        punchSound.dispose();
 
         // Gojo idle
         for (TextureRegion region : gojoIdleFrames) {
@@ -496,5 +540,9 @@ public class GameScreen implements Screen {
         for (Texture t : sukunaLifeTextures) {
             t.dispose();
         }
+
+        // Liberar imágenes de muerte
+        gojoDeadTexture.dispose();
+        sukunaDeadTexture.dispose();
     }
 }
