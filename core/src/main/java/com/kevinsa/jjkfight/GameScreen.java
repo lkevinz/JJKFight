@@ -96,6 +96,7 @@ public class GameScreen implements Screen {
     private static final float COLLISION_WIDTH_PERCENT = 0.30f;
     private static final float COLLISION_HEIGHT_PERCENT = 0.68f;
 
+    // Variable para el retraso antes de cambiar a EndScreen (en segundos)
     private float endScreenDelayTimer = 0f;
 
     public GameScreen(JJKFight game) {
@@ -208,17 +209,15 @@ public class GameScreen implements Screen {
         // Actualizar volumen de la música de fondo según el valor obtenido del menú
         gameMusic.setVolume(game.getVolume());
 
-        // Si alguno está muerto, esperar 5 segundos antes de cambiar a EndScreen
+        // Si alguno está muerto, esperar 10 segundos antes de cambiar a EndScreen
         if (gojoLifeIndex == 17 || sukunaLifeIndex == 17) {
             endScreenDelayTimer += delta;
-            if (endScreenDelayTimer >= 5f) {
+            if (endScreenDelayTimer >= 10f) {
                 gameMusic.stop();
                 game.setScreen(new EndScreen(game, gojoLifeIndex, sukunaLifeIndex));
                 return;
             }
         }
-
-
 
         // ---------------- Actualizar controles de Gojo (movimiento) ----------------
         boolean gojoMovingSide = false;
@@ -504,15 +503,15 @@ public class GameScreen implements Screen {
         batch.end();
 
         // ---------------- Renderizado de Debug (colisiones) ----------------
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-        shapeRenderer.setColor(Color.GREEN);
-        shapeRenderer.rect(leftWall.x, leftWall.y, leftWall.width, leftWall.height);
-        shapeRenderer.rect(rightWall.x, rightWall.y, rightWall.width, rightWall.height);
-        shapeRenderer.rect(topWall.x, topWall.y, topWall.width, topWall.height);
-        shapeRenderer.rect(bottomWall.x, bottomWall.y, bottomWall.width, bottomWall.height);
-        shapeRenderer.rect(activeGojoRectPost.x, activeGojoRectPost.y, activeGojoRectPost.width, activeGojoRectPost.height);
-        shapeRenderer.rect(activeSukunaRectPost.x, activeSukunaRectPost.y, activeSukunaRectPost.width, activeSukunaRectPost.height);
-        shapeRenderer.end();
+        //shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        //shapeRenderer.setColor(Color.GREEN);
+        //shapeRenderer.rect(leftWall.x, leftWall.y, leftWall.width, leftWall.height);
+        //shapeRenderer.rect(rightWall.x, rightWall.y, rightWall.width, rightWall.height);
+        //shapeRenderer.rect(topWall.x, topWall.y, topWall.width, topWall.height);
+        //shapeRenderer.rect(bottomWall.x, bottomWall.y, bottomWall.width, bottomWall.height);
+        //shapeRenderer.rect(activeGojoRectPost.x, activeGojoRectPost.y, activeGojoRectPost.width, activeGojoRectPost.height);
+        //shapeRenderer.rect(activeSukunaRectPost.x, activeSukunaRectPost.y, activeSukunaRectPost.width, activeSukunaRectPost.height);
+        //shapeRenderer.end();
     }
 
     @Override
