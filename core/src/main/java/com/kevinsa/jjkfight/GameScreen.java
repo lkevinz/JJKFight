@@ -212,7 +212,7 @@ public class GameScreen implements Screen {
         // Si alguno está muerto, esperar 10 segundos antes de cambiar a EndScreen
         if (gojoLifeIndex == 17 || sukunaLifeIndex == 17) {
             endScreenDelayTimer += delta;
-            if (endScreenDelayTimer >= 10f) {
+            if (endScreenDelayTimer >= 5f) {
                 gameMusic.stop();
                 game.setScreen(new EndScreen(game, gojoLifeIndex, sukunaLifeIndex));
                 return;
@@ -383,7 +383,7 @@ public class GameScreen implements Screen {
             }
         }
         if (gojoAttacking) {
-            gojoAttackTime += delta;
+            gojoAttackTime += delta*2;
             if (gojoAttackTime / ATTACK_FRAME_DURATION >= 5) {
                 gojoAttacking = false;
             }
@@ -401,7 +401,7 @@ public class GameScreen implements Screen {
             }
         }
         if (sukunaAttacking) {
-            sukunaAttackTime += delta;
+            sukunaAttackTime += delta*2;
             if (sukunaAttackTime / ATTACK_FRAME_DURATION >= 5) {
                 sukunaAttacking = false;
             }
